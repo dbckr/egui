@@ -774,6 +774,14 @@ fn events(
             Event::Key {
                 key: Key::Enter,
                 pressed: true,
+                modifiers:
+                    Modifiers {
+                        alt: false,
+                        ctrl: false,
+                        shift: true,
+                        mac_cmd: false,
+                        command: false,
+                    },
                 ..
             } => {
                 if multiline {
