@@ -4,7 +4,7 @@ version = "0.18.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.61"
 homepage = "https://github.com/emilk/egui/tree/master/egui_glow"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -77,4 +77,4 @@ glutin = "0.28.0" # examples/pure_glow
 
 [[example]]
 name = "pure_glow"
-required-features = ["winit"]
+required-features = ["winit", "egui/default_fonts"]

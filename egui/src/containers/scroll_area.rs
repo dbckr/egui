@@ -272,8 +272,8 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged all the way to the right it will again become stuck and remain there
     /// until manually pulled from the end position.
-    pub fn stick_to_right(mut self) -> Self {
-        self.stick_to_end[0] = true;
+    pub fn stick_to_right(mut self, stick: bool) -> Self {
+        self.stick_to_end[0] = stick;
         self
     }
 
@@ -283,8 +283,8 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged to the bottom it will again become stuck and remain there until manually
     /// pulled from the end position.
-    pub fn stick_to_bottom(mut self) -> Self {
-        self.stick_to_end[1] = true;
+    pub fn stick_to_bottom(mut self, stick: bool) -> Self {
+        self.stick_to_end[1] = stick;
         self
     }
 }
@@ -601,12 +601,12 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
-        let content_is_too_small = [
+        let content_is_too_large = [
             content_size.x > inner_rect.width(),
             content_size.y > inner_rect.height(),
         ];
 
-        if content_is_too_small[0] || content_is_too_small[1] {
+        if content_is_too_large[0] || content_is_too_large[1] {
             // Drag contents to scroll (for touch screens mostly):
             let sense = if self.scrolling_enabled {
                 Sense::drag()
@@ -664,8 +664,8 @@ impl Prepared {
         }
 
         let show_scroll_this_frame = [
-            content_is_too_small[0] || always_show_scroll,
-            content_is_too_small[1] || always_show_scroll,
+            content_is_too_large[0] || always_show_scroll,
+            content_is_too_large[1] || always_show_scroll,
         ];
 
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);

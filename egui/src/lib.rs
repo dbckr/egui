@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.60.0 or later to use `egui`.
+//! You need to have rust 1.61.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -319,7 +319,7 @@ mod sense;
 pub mod style;
 mod ui;
 pub mod util;
-mod widget_text;
+pub mod widget_text;
 pub mod widgets;
 
 pub use epaint;
@@ -375,7 +375,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
         ui.label(
             RichText::new("‼ Debug build ‼")
                 .small()
-                .color(crate::Color32::RED),
+                .color(ui.visuals().warn_fg_color),
         )
         .on_hover_text("egui was compiled with debug assertions enabled.");
     }
@@ -479,15 +479,19 @@ macro_rules! egui_assert {
 pub mod special_emojis {
     /// Tux, the Linux penguin.
     pub const OS_LINUX: char = '🐧';
+
     /// The Windows logo.
     pub const OS_WINDOWS: char = '';
+
     /// The Android logo.
     pub const OS_ANDROID: char = '';
+
     /// The Apple logo.
     pub const OS_APPLE: char = '';
 
     /// The Github logo.
     pub const GITHUB: char = '';
+
     /// The Twitter bird.
     pub const TWITTER: char = '';
 

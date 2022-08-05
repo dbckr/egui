@@ -10,6 +10,7 @@ fn gaussian(x: f64) -> f64 {
     let var: f64 = 2.0;
     f64::exp(-(x / var).powi(2)) / (var * f64::sqrt(std::f64::consts::TAU))
 }
+
 fn sigmoid(x: f64) -> f64 {
     -1.0 + 2.0 / (1.0 + f64::exp(-x))
 }
@@ -116,17 +117,21 @@ impl super::View for ContextMenus {
 
 impl ContextMenus {
     fn example_plot(&self, ui: &mut egui::Ui) -> egui::Response {
-        use egui::plot::{Line, Value, Values};
+        use egui::plot::{Line, PlotPoints};
         let n = 128;
-        let line = Line::new(Values::from_values_iter((0..=n).map(|i| {
-            use std::f64::consts::TAU;
-            let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
-            match self.plot {
-                Plot::Sin => Value::new(x, x.sin()),
-                Plot::Bell => Value::new(x, 10.0 * gaussian(x)),
-                Plot::Sigmoid => Value::new(x, sigmoid(x)),
-            }
-        })));
+        let line = Line::new(
+            (0..=n)
+                .map(|i| {
+                    use std::f64::consts::TAU;
+                    let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
+                    match self.plot {
+                        Plot::Sin => [x, x.sin()],
+                        Plot::Bell => [x, 10.0 * gaussian(x)],
+                        Plot::Sigmoid => [x, sigmoid(x)],
+                    }
+                })
+                .collect::<PlotPoints>(),
+        );
         egui::plot::Plot::new("example_plot")
             .show_axes(self.show_axes)
             .allow_drag(self.allow_drag)

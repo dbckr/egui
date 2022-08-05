@@ -42,7 +42,8 @@ impl eframe::App for FractalClockApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
-                self.fractal_clock.ui(ui, crate::seconds_since_midnight());
+                self.fractal_clock
+                    .ui(ui, Some(crate::seconds_since_midnight()));
             });
     }
 }
@@ -167,10 +168,9 @@ impl eframe::App for WrapApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        if let Some(web_info) = frame.info().web_info.as_ref() {
-            if let Some(anchor) = web_info.location.hash.strip_prefix('#') {
-                self.state.selected_anchor = anchor.to_owned();
-            }
+        #[cfg(target_arch = "wasm32")]
+        if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
+            self.state.selected_anchor = anchor.to_owned();
         }
 
         if self.state.selected_anchor.is_empty() {
@@ -284,15 +284,13 @@ impl WrapApp {
         }
         self.state.selected_anchor = selected_anchor;
 
-        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if false {
                 // TODO(emilk): fix the overlap on small screens
-                if let Some(seconds_since_midnight) = crate::seconds_since_midnight() {
-                    if clock_button(ui, seconds_since_midnight).clicked() {
-                        self.state.selected_anchor = "clock".to_owned();
-                        if frame.is_web() {
-                            ui.output().open_url("#clock");
-                        }
+                if clock_button(ui, crate::seconds_since_midnight()).clicked() {
+                    self.state.selected_anchor = "clock".to_owned();
+                    if frame.is_web() {
+                        ui.output().open_url("#clock");
                     }
                 }
             }

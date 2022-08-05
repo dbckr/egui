@@ -13,7 +13,7 @@ use transform::ScreenTransform;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
-    Orientation, PlotImage, Points, Polygon, Text, VLine, Value, Values,
+    Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
 pub use transform::PlotBounds;
@@ -22,7 +22,7 @@ mod items;
 mod legend;
 mod transform;
 
-type LabelFormatterFn = dyn Fn(&str, &Value) -> String;
+type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
 type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
 type AxisFormatter = Option<Box<AxisFormatterFn>>;
@@ -32,12 +32,12 @@ type GridSpacer = Box<GridSpacerFn>;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
-    function: Box<dyn Fn(&Value, &PlotBounds) -> String>,
+    function: Box<dyn Fn(&PlotPoint, &PlotBounds) -> String>,
 }
 
 impl CoordinatesFormatter {
     /// Create a new formatter based on the pointer coordinate and the plot bounds.
-    pub fn new(function: impl Fn(&Value, &PlotBounds) -> String + 'static) -> Self {
+    pub fn new(function: impl Fn(&PlotPoint, &PlotBounds) -> String + 'static) -> Self {
         Self {
             function: Box::new(function),
         }
@@ -52,7 +52,7 @@ impl CoordinatesFormatter {
         }
     }
 
-    fn format(&self, value: &Value, bounds: &PlotBounds) -> String {
+    fn format(&self, value: &PlotPoint, bounds: &PlotBounds) -> String {
         (self.function)(value, bounds)
     }
 }
@@ -178,12 +178,12 @@ impl LinkedAxisGroup {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// use egui::plot::{Line, Plot, Value, Values};
-/// let sin = (0..1000).map(|i| {
+/// use egui::plot::{Line, Plot, PlotPoints};
+/// let sin: PlotPoints = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
-///     Value::new(x, x.sin())
-/// });
-/// let line = Line::new(Values::from_values_iter(sin));
+///     [x, x.sin()]
+/// }).collect();
+/// let line = Line::new(sin);
 /// Plot::new("my_plot").view_aspect(2.0).show(ui, |plot_ui| plot_ui.line(line));
 /// # });
 /// ```
@@ -359,18 +359,18 @@ impl Plot {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui::plot::{Line, Plot, Value, Values};
-    /// let sin = (0..1000).map(|i| {
+    /// use egui::plot::{Line, Plot, PlotPoints};
+    /// let sin: PlotPoints = (0..1000).map(|i| {
     ///     let x = i as f64 * 0.01;
-    ///     Value::new(x, x.sin())
-    /// });
-    /// let line = Line::new(Values::from_values_iter(sin));
+    ///     [x, x.sin()]
+    /// }).collect();
+    /// let line = Line::new(sin);
     /// Plot::new("my_plot").view_aspect(2.0)
     /// .label_formatter(|name, value| {
     ///     if !name.is_empty() {
     ///         format!("{}: {:.*}%", name, 1, value.y)
     ///     } else {
-    ///         "".to_string()
+    ///         "".to_owned()
     ///     }
     /// })
     /// .show(ui, |plot_ui| plot_ui.line(line));
@@ -378,7 +378,7 @@ impl Plot {
     /// ```
     pub fn label_formatter(
         mut self,
-        label_formatter: impl Fn(&str, &Value) -> String + 'static,
+        label_formatter: impl Fn(&str, &PlotPoint) -> String + 'static,
     ) -> Self {
         self.label_formatter = Some(Box::new(label_formatter));
         self
@@ -682,8 +682,12 @@ impl Plot {
             auto_bounds = true.into();
         }
 
+        if !bounds.is_valid() {
+            auto_bounds = true.into();
+        }
+
         // Set bounds automatically based on content.
-        if auto_bounds.any() || !bounds.is_valid() {
+        if auto_bounds.any() {
             if auto_bounds.x {
                 bounds.set_x(&min_auto_bounds);
             }
@@ -693,13 +697,13 @@ impl Plot {
             }
 
             for item in &items {
-                // bounds.merge(&item.get_bounds());
+                let item_bounds = item.get_bounds();
 
                 if auto_bounds.x {
-                    bounds.merge_x(&item.get_bounds());
+                    bounds.merge_x(&item_bounds);
                 }
                 if auto_bounds.y {
-                    bounds.merge_y(&item.get_bounds());
+                    bounds.merge_y(&item_bounds);
                 }
             }
 
@@ -714,12 +718,14 @@ impl Plot {
 
         let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
 
-        // Enforce equal aspect ratio.
+        // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
-            let preserve_y = linked_axes
-                .as_ref()
-                .map_or(false, |group| group.link_y && !group.link_x);
-            transform.set_aspect(data_aspect as f64, preserve_y);
+            if let Some(linked_axes) = &linked_axes {
+                let change_x = linked_axes.link_y && !linked_axes.link_x;
+                transform.set_aspect_by_changing_axis(data_aspect as f64, change_x);
+            } else {
+                transform.set_aspect_by_expanding(data_aspect as f64);
+            }
         }
 
         // Dragging
@@ -766,7 +772,7 @@ impl Plot {
                         max: [box_end_pos.x, box_start_pos.y],
                     };
                     if new_bounds.is_valid() {
-                        *transform.bounds_mut() = new_bounds;
+                        transform.set_bounds(new_bounds);
                         auto_bounds = false.into();
                     } else {
                         auto_bounds = true.into();
@@ -892,7 +898,7 @@ impl PlotUi {
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
-    pub fn pointer_coordinate(&self) -> Option<Value> {
+    pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
         let last_pos = self.ctx().input().pointer.latest_pos()? - self.response.drag_delta();
         let value = self.plot_from_screen(last_pos);
@@ -907,12 +913,12 @@ impl PlotUi {
     }
 
     /// Transform the plot coordinates to screen coordinates.
-    pub fn screen_from_plot(&self, position: Value) -> Pos2 {
-        self.last_screen_transform.position_from_value(&position)
+    pub fn screen_from_plot(&self, position: PlotPoint) -> Pos2 {
+        self.last_screen_transform.position_from_point(&position)
     }
 
     /// Transform the screen coordinates to plot coordinates.
-    pub fn plot_from_screen(&self, position: Pos2) -> Value {
+    pub fn plot_from_screen(&self, position: Pos2) -> PlotPoint {
         self.last_screen_transform.value_from_position(position)
     }
 
@@ -1188,12 +1194,12 @@ impl PreparedPlot {
             let value_main = step.value;
 
             let value = if axis == 0 {
-                Value::new(value_main, value_cross)
+                PlotPoint::new(value_main, value_cross)
             } else {
-                Value::new(value_cross, value_main)
+                PlotPoint::new(value_cross, value_main)
             };
 
-            let pos_in_gui = transform.position_from_value(&value);
+            let pos_in_gui = transform.position_from_point(&value);
             let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
 
             let line_alpha = remap_clamp(

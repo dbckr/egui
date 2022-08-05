@@ -75,12 +75,14 @@ pub fn drop_target<R>(
 
     InnerResponse::new(ret, response)
 }
+
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
     /// columns with items
     columns: Vec<Vec<String>>,
 }
+
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {
@@ -147,7 +149,7 @@ impl super::View for DragAndDropDemo {
 
                 let response = response.context_menu(|ui| {
                     if ui.button("New Item").clicked() {
-                        self.columns[col_idx].push("New Item".to_string());
+                        self.columns[col_idx].push("New Item".to_owned());
                         ui.close_menu();
                     }
                 });

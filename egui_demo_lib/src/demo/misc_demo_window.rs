@@ -426,6 +426,7 @@ impl Tree {
             Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
         ])
     }
+
     pub fn ui(&mut self, ui: &mut Ui) -> Action {
         self.ui_impl(ui, 0, "root")
     }
@@ -443,7 +444,7 @@ impl Tree {
     fn children_ui(&mut self, ui: &mut Ui, depth: usize) -> Action {
         if depth > 0
             && ui
-                .button(RichText::new("delete").color(Color32::RED))
+                .button(RichText::new("delete").color(ui.visuals().warn_fg_color))
                 .clicked()
         {
             return Action::Delete;
@@ -647,7 +648,7 @@ fn text_layout_ui(
         ui.label("Overflow character");
     });
 
-    let mut job = LayoutJob::single_section(LOREM_IPSUM.to_string(), TextFormat::default());
+    let mut job = LayoutJob::single_section(LOREM_IPSUM.to_owned(), TextFormat::default());
     job.wrap = TextWrapping {
         max_rows: *max_rows,
         break_anywhere: *break_anywhere,

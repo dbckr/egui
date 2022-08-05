@@ -78,10 +78,12 @@ enum Element {
         #[cfg(feature = "persistence")]
         serialize_fn: Option<Serializer>,
     },
+
     /// A serialized value
     Serialized {
         /// The type of value we are storing.
         type_id: TypeId,
+
         /// The ron data we can deserialize.
         ron: Arc<str>,
     },
@@ -316,19 +318,19 @@ use crate::Id;
 ///
 /// // `b` associated with an f64 and a `&'static str`
 /// map.insert_persisted(b, 13.37);
-/// map.insert_temp(b, "Hello World".to_string());
+/// map.insert_temp(b, "Hello World".to_owned());
 ///
 /// // we can retrieve all four values:
 /// assert_eq!(map.get_temp::<f64>(a), Some(3.14));
 /// assert_eq!(map.get_temp::<i32>(a), Some(42));
 /// assert_eq!(map.get_temp::<f64>(b), Some(13.37));
-/// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+/// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 ///
 /// // we can retrieve them like so also:
 /// assert_eq!(map.get_persisted::<f64>(a), Some(3.14));
 /// assert_eq!(map.get_persisted::<i32>(a), Some(42));
 /// assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
-/// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+/// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 /// ```
 #[derive(Clone, Debug, Default)]
 // We store use `id XOR typeid` as a key, so we don't need to hash again!
@@ -512,6 +514,7 @@ impl PersistedMap {
                 .collect(),
         )
     }
+
     fn into_map(self) -> IdTypeMap {
         IdTypeMap(
             self.0
@@ -574,19 +577,19 @@ fn test_two_id_x_two_types() {
 
     // `b` associated with an f64 and a `&'static str`
     map.insert_persisted(b, 13.37);
-    map.insert_temp(b, "Hello World".to_string());
+    map.insert_temp(b, "Hello World".to_owned());
 
     // we can retrieve all four values:
     assert_eq!(map.get_temp::<f64>(a), Some(3.14));
     assert_eq!(map.get_temp::<i32>(a), Some(42));
     assert_eq!(map.get_temp::<f64>(b), Some(13.37));
-    assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+    assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 
     // we can retrieve them like so also:
     assert_eq!(map.get_persisted::<f64>(a), Some(3.14));
     assert_eq!(map.get_persisted::<i32>(a), Some(42));
     assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
-    assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_string()));
+    assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 }
 
 #[test]

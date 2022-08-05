@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use super::items::Value;
+use super::PlotPoint;
 use crate::*;
 
 /// 2D bounding box of f64 precision.
@@ -52,15 +52,16 @@ impl PlotBounds {
         self.max[1] - self.min[1]
     }
 
-    pub fn center(&self) -> Value {
-        Value {
-            x: (self.min[0] + self.max[0]) / 2.0,
-            y: (self.min[1] + self.max[1]) / 2.0,
-        }
+    pub fn center(&self) -> PlotPoint {
+        [
+            (self.min[0] + self.max[0]) / 2.0,
+            (self.min[1] + self.max[1]) / 2.0,
+        ]
+        .into()
     }
 
     /// Expand to include the given (x,y) value
-    pub(crate) fn extend_with(&mut self, value: &Value) {
+    pub(crate) fn extend_with(&mut self, value: &PlotPoint) {
         self.extend_with_x(value.x);
         self.extend_with_y(value.y);
     }
@@ -166,10 +167,13 @@ impl PlotBounds {
 pub(crate) struct ScreenTransform {
     /// The screen rectangle.
     frame: Rect,
+
     /// The plot bounds.
     bounds: PlotBounds,
+
     /// Whether to always center the x-range of the bounds.
     x_centered: bool,
+
     /// Whether to always center the y-range of the bounds.
     y_centered: bool,
 }
@@ -205,8 +209,8 @@ impl ScreenTransform {
         &self.bounds
     }
 
-    pub fn bounds_mut(&mut self) -> &mut PlotBounds {
-        &mut self.bounds
+    pub fn set_bounds(&mut self, bounds: PlotBounds) {
+        self.bounds = bounds;
     }
 
     pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
@@ -236,7 +240,7 @@ impl ScreenTransform {
         }
     }
 
-    pub fn position_from_value(&self, value: &Value) -> Pos2 {
+    pub fn position_from_point(&self, value: &PlotPoint) -> Pos2 {
         let x = remap(
             value.x,
             self.bounds.min[0]..=self.bounds.max[0],
@@ -250,7 +254,7 @@ impl ScreenTransform {
         pos2(x as f32, y as f32)
     }
 
-    pub fn value_from_position(&self, pos: Pos2) -> Value {
+    pub fn value_from_position(&self, pos: Pos2) -> PlotPoint {
         let x = remap(
             pos.x as f64,
             (self.frame.left() as f64)..=(self.frame.right() as f64),
@@ -261,16 +265,16 @@ impl ScreenTransform {
             (self.frame.bottom() as f64)..=(self.frame.top() as f64), // negated y axis!
             self.bounds.min[1]..=self.bounds.max[1],
         );
-        Value::new(x, y)
+        PlotPoint::new(x, y)
     }
 
     /// Transform a rectangle of plot values to a screen-coordinate rectangle.
     ///
     /// This typically means that the rect is mirrored vertically (top becomes bottom and vice versa),
     /// since the plot's coordinate system has +Y up, while egui has +Y down.
-    pub fn rect_from_values(&self, value1: &Value, value2: &Value) -> Rect {
-        let pos1 = self.position_from_value(value1);
-        let pos2 = self.position_from_value(value2);
+    pub fn rect_from_values(&self, value1: &PlotPoint, value2: &PlotPoint) -> Rect {
+        let pos1 = self.position_from_point(value1);
+        let pos2 = self.position_from_point(value2);
 
         let mut rect = Rect::NOTHING;
         rect.extend_with(pos1);
@@ -298,15 +302,17 @@ impl ScreenTransform {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
-    pub fn get_aspect(&self) -> f64 {
+    fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
         (self.bounds.width() / rw) / (self.bounds.height() / rh)
     }
 
-    /// Sets the aspect ratio by either expanding the x-axis or contracting the y-axis.
-    pub fn set_aspect(&mut self, aspect: f64, preserve_y: bool) {
-        let current_aspect = self.get_aspect();
+    /// Sets the aspect ratio by expanding the x- or y-axis.
+    ///
+    /// This never contracts, so we don't miss out on any data.
+    pub fn set_aspect_by_expanding(&mut self, aspect: f64) {
+        let current_aspect = self.aspect();
 
         let epsilon = 1e-5;
         if (current_aspect - aspect).abs() < epsilon {
@@ -314,7 +320,26 @@ impl ScreenTransform {
             return;
         }
 
-        if preserve_y {
+        if current_aspect < aspect {
+            self.bounds
+                .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
+        } else {
+            self.bounds
+                .expand_y((current_aspect / aspect - 1.0) * self.bounds.height() * 0.5);
+        }
+    }
+
+    /// Sets the aspect ratio by changing either the X or Y axis (callers choice).
+    pub fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
+        let current_aspect = self.aspect();
+
+        let epsilon = 1e-5;
+        if (current_aspect - aspect).abs() < epsilon {
+            // Don't make any changes when the aspect is already almost correct.
+            return;
+        }
+
+        if change_x {
             self.bounds
                 .expand_x((aspect / current_aspect - 1.0) * self.bounds.width() * 0.5);
         } else {

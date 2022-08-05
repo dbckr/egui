@@ -51,7 +51,7 @@ struct ContextImpl {
     repaint_after: std::time::Duration,
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
-    request_repaint_callbacks: Option<Box<dyn Fn() + Send + Sync>>,
+    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
     requested_repaint_last_frame: bool,
 }
 
@@ -570,7 +570,7 @@ impl Context {
         // request two frames of repaint, just to cover some corner cases (frame delays):
         let mut ctx = self.write();
         ctx.repaint_requests = 2;
-        if let Some(callback) = &ctx.request_repaint_callbacks {
+        if let Some(callback) = &ctx.request_repaint_callback {
             (callback)();
         }
     }
@@ -611,9 +611,11 @@ impl Context {
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
     ///
     /// This lets you wake up a sleeping UI thread.
+    ///
+    /// Note that only one callback can be set. Any new call overrides the previous callback.
     pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
         let callback = Box::new(callback);
-        self.write().request_repaint_callbacks = Some(callback);
+        self.write().request_repaint_callback = Some(callback);
     }
 
     /// Tell `egui` which fonts to use.
@@ -910,7 +912,7 @@ impl Context {
     /// How much space is used by panels and windows.
     /// You can shrink your egui area to this size and still fit all egui components.
     pub fn used_size(&self) -> Vec2 {
-        self.used_rect().max - Pos2::new(0.0, 0.0)
+        self.used_rect().max - Pos2::ZERO
     }
 
     // ---------------------------------------------------------------------
@@ -1198,7 +1200,7 @@ impl Context {
             textures.len(),
             bytes as f64 * 1e-6
         ));
-        let max_preview_size = Vec2::new(48.0, 32.0);
+        let max_preview_size = vec2(48.0, 32.0);
 
         ui.group(|ui| {
             ScrollArea::vertical()
@@ -1209,19 +1211,19 @@ impl Context {
                     Grid::new("textures")
                         .striped(true)
                         .num_columns(4)
-                        .spacing(Vec2::new(16.0, 2.0))
+                        .spacing(vec2(16.0, 2.0))
                         .min_row_height(max_preview_size.y)
                         .show(ui, |ui| {
                             for (&texture_id, meta) in textures {
                                 let [w, h] = meta.size;
 
-                                let mut size = Vec2::new(w as f32, h as f32);
+                                let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(texture_id, size).on_hover_ui(|ui| {
                                     // show larger on hover
                                     let max_size = 0.5 * ui.ctx().input().screen_rect().size();
-                                    let mut size = Vec2::new(w as f32, h as f32);
+                                    let mut size = vec2(w as f32, h as f32);
                                     size *= max_size.x / size.x.max(max_size.x);
                                     size *= max_size.y / size.y.max(max_size.y);
                                     ui.image(texture_id, size);
@@ -1348,7 +1350,6 @@ impl Context {
     }
 }
 
-#[cfg(test)]
 #[test]
 fn context_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}

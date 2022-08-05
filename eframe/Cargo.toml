@@ -4,7 +4,7 @@ version = "0.18.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.61"
 homepage = "https://github.com/emilk/egui/tree/master/eframe"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -47,7 +47,7 @@ persistence = [
 ##
 ## Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
 ## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
-puffin = ["dep:puffin", "egui_glow/puffin"]
+puffin = ["dep:puffin", "egui_glow?/puffin"]
 
 ## Enable screen reader support (requires `ctx.options().screen_reader = true;`)
 screen_reader = [

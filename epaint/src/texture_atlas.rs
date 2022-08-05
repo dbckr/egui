@@ -6,10 +6,13 @@ use crate::{textures::TextureFilter, FontImage, ImageDelta};
 struct Rectu {
     /// inclusive
     min_x: usize,
+
     /// inclusive
     min_y: usize,
+
     /// exclusive
     max_x: usize,
+
     /// exclusive
     max_y: usize,
 }
@@ -55,11 +58,13 @@ pub struct PreparedDisc {
 #[derive(Clone)]
 pub struct TextureAtlas {
     image: FontImage,
+
     /// What part of the image that is dirty
     dirty: Rectu,
 
     /// Used for when allocating new rectangles.
     cursor: (usize, usize),
+
     row_height: usize,
 
     /// Set when someone requested more space than was available.
@@ -104,11 +109,8 @@ impl TextureAtlas {
             for dx in -hw..=hw {
                 for dy in -hw..=hw {
                     let distance_to_center = ((dx * dx + dy * dy) as f32).sqrt();
-                    let coverage = remap_clamp(
-                        distance_to_center,
-                        (r as f32 - 0.5)..=(r as f32 + 0.5),
-                        1.0..=0.0,
-                    );
+                    let coverage =
+                        remap_clamp(distance_to_center, (r - 0.5)..=(r + 0.5), 1.0..=0.0);
                     image[((x as i32 + hw + dx) as usize, (y as i32 + hw + dy) as usize)] =
                         coverage;
                 }
